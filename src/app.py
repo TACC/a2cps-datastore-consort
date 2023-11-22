@@ -2,6 +2,7 @@
 import os # Operating system library
 import flask
 import pathlib # file paths
+import logging
 
 # Data Cleaning and transformations
 import pandas as pd

@@ -1,8 +1,7 @@
 import os
 import flask
 import requests
-import json
-import traceback
+import logging
 
 # ---------------------------------
 #   MOVE THIS TO REFERENCE FROM ENV
@@ -14,9 +13,6 @@ logger  = logging.getLogger("imaging_app")
 # ---------------------------------
 #   Get Data From datastore
 # ---------------------------------
-
-class PortalAuthException(Exception):
-    '''Custom Exception for issues with Authentication'''
 
 def get_api_data(api_address, ignore_cache=False):
     api_json = {}
