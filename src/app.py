@@ -79,7 +79,7 @@ def serve_layout():
 
     # ignore cache and request again, if data is not formed correctly.
     try:
-        app.logger.info(api_json)
+        app.logger.debug(api_json)
         if 'data' not in api_json or 'consort' not in api_json['data']:
             app.logger.info('Requesting data from api {0} to ignore cache.'.format(api_address))
             api_json = get_api_data(api_address, True)
@@ -156,11 +156,11 @@ def show_store_data(mcc, api_data):
     df_json = api_data
     error_div = html.Div('There is no data available for this selection')
     
-    print(mcc)
+    app.logger.info('Selected mcc - {0}'.format(mcc))
     if not mcc:
         return html.Div('Please select an mcc to view data')
     if not df_json:
-        print('no df')
+        app.logger.info('no df')
         return error_div
     else:
         df = pd.DataFrame.from_dict(df_json)
