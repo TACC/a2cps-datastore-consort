@@ -2,6 +2,7 @@
 import os # Operating system library
 import flask
 import pathlib # file paths
+import logging
 
 # Data Cleaning and transformations
 import pandas as pd
@@ -42,6 +43,10 @@ app = Dash(__name__,
                 requests_pathname_prefix=REQUESTS_PATHNAME_PREFIX,
                 suppress_callback_exceptions=True
                 )
+gunicorn_logger = logging.getLogger('gunicorn.error')
+app.logger = logging.getLogger("consort_ui")
+app.logger.handlers = gunicorn_logger.handlers
+app.logger.setLevel(logging.INFO)
 
 # ----------------------------------------------------------------------------
 # Sample JSON
@@ -50,44 +55,40 @@ latest_data = [{"source": "Screened Patients", "target": "Declined - Not interes
 
 
 # ---------------------------------
-#   Get Data From datastore
-# ---------------------------------
-
-def get_api_data(api_address):
-    api_json = {}
-    try:
-        try:
-            response = requests.get(api_address, cookies=flask.request.cookies)
-        except:
-            return('error: {}'.format(e))
-        request_status = response.status_code
-        if request_status == 200:
-            api_json = response.json()
-        else:
-            api_json ={}
-        return request_status, api_json
-    except Exception as e:
-        traceback.print_exc()
-        return('error: {}'.format(e))
-
-# ---------------------------------
 #   Page components
 # ---------------------------------
 
 def serve_layout():
     # get data via in the internal docker network
-    print(DATASTORE_URL)
     api_address = DATASTORE_URL +'consort'
-    api_json = get_api_data(api_address)   
+    app.logger.info('Requesting data from api {0}'.format(api_address))
+    api_json = get_api_data(api_address)
     
-    if api_json[0]==200:
-        consort_data = api_json[1]['data']['consort']
-        report_title = html.Div([html.H1('CONSORT REPORT')])
-    else:
-        print('api failed')
-        consort_data = latest_data
-        report_title = html.Div([html.H1('CONSORT REPORT (sample data)'), 
-                                 html.P('Current data unavailable')])
+    if 'error' in api_json:
+        app.logger.info('Error response from datastore: {0}'.format(api_json))
+        if 'error_code' in api_json:
+            error_code = api_json['error_code']
+            if error_code in ('MISSING_SESSION_ID', 'INVALID_TAPIS_TOKEN'):
+                app.logger.warn('Auth error from datastore, asking user to authenticate')
+                return html.Div([html.H1('CONSORT REPORT'),
+                                         html.H4('Please login and authenticate on the portal to access the report.')],style=TACC_IFRAME_SIZE)
+            else:
+                return html.Div([html.H1('CONSORT REPORT (sample data)'), 
+                                 html.P('Current data unavailable')],style=TACC_IFRAME_SIZE)
+
+
+    # ignore cache and request again, if data is not formed correctly.
+    try:
+        app.logger.debug(api_json)
+        if 'data' not in api_json or 'consort' not in api_json['data']:
+            app.logger.info('Requesting data from api {0} to ignore cache.'.format(api_address))
+            api_json = get_api_data(api_address, True)
+    except KeyError:
+        app.logger.info('Requesting data from api {0} to ignore cache.'.format(api_address))
+        api_json = get_api_data(api_address, True)
+
+    consort_data = api_json['data']['consort']
+    report_title = html.Div([html.H1('CONSORT REPORT')])
 
     layout =  html.Div([
         html.Div([
@@ -155,11 +156,11 @@ def show_store_data(mcc, api_data):
     df_json = api_data
     error_div = html.Div('There is no data available for this selection')
     
-    print(mcc)
+    app.logger.info('Selected mcc - {0}'.format(mcc))
     if not mcc:
         return html.Div('Please select an mcc to view data')
     if not df_json:
-        print('no df')
+        app.logger.info('no df')
         return error_div
     else:
         df = pd.DataFrame.from_dict(df_json)
