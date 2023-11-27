@@ -79,21 +79,16 @@ def serve_layout():
 
     # ignore cache and request again, if data is not formed correctly.
     try:
-        if 1 not in api_json  or 'data' not in api_json[1] or 'consort' not in api_json[1]['data']:
+        app.logger.info(api_json)
+        if 'data' not in api_json or 'consort' not in api_json['data']:
             app.logger.info('Requesting data from api {0} to ignore cache.'.format(api_address))
             api_json = get_api_data(api_address, True)
     except KeyError:
         app.logger.info('Requesting data from api {0} to ignore cache.'.format(api_address))
         api_json = get_api_data(api_address, True)
 
-    if api_json[0]==200:
-        consort_data = api_json[1]['data']['consort']
-        report_title = html.Div([html.H1('CONSORT REPORT')])
-    else:
-        app.logger.warn('api failed')
-        consort_data = latest_data
-        report_title = html.Div([html.H1('CONSORT REPORT (sample data)'), 
-                                 html.P('Current data unavailable')])
+    consort_data = api_json['data']['consort']
+    report_title = html.Div([html.H1('CONSORT REPORT')])
 
     layout =  html.Div([
         html.Div([
