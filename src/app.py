@@ -71,14 +71,18 @@ def serve_layout():
             if error_code in ('MISSING_SESSION_ID', 'INVALID_TAPIS_TOKEN'):
                 app.logger.warn('Auth error from datastore, asking user to authenticate')
                 return html.Div([html.H1('CONSORT REPORT'),
-                                         html.H4('Please login and authenticate on the portal to access the report.')])
+                                         html.H4('Please login and authenticate on the portal to access the report.')],style=TACC_IFRAME_SIZE)
             else:
-                report_title = html.Div([html.H1('CONSORT REPORT (sample data)'), 
-                                 html.P('Current data unavailable')])
+                return html.Div([html.H1('CONSORT REPORT (sample data)'), 
+                                 html.P('Current data unavailable')],style=TACC_IFRAME_SIZE)
 
 
-    # ignore cache and request again.
-    if 'data' not in api_json[1] or 'consort' not in api_json[1]['data']:
+    # ignore cache and request again, if data is not formed correctly.
+    try:
+        if 1 not in api_json  or 'data' not in api_json[1] or 'consort' not in api_json[1]['data']:
+            app.logger.info('Requesting data from api {0} to ignore cache.'.format(api_address))
+            api_json = get_api_data(api_address, True)
+    except KeyError:
         app.logger.info('Requesting data from api {0} to ignore cache.'.format(api_address))
         api_json = get_api_data(api_address, True)
 
